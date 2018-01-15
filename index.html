@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+	<title>凯撒加密(Caesar cipher)</title>
+	<link rel="stylesheet" href="js/layui/css/layui.css">
+	<script src="js/Caesarcipher/common.js" type="text/javascript" ></script>
+	<script src="js/Caesarcipher/Caesarcipher.js" type="text/javascript" ></script>
+	<script src="js/Playfair/Playfair.js" type="text/javascript" ></script>
+	<script src="js/Hill/Matrix.js" type="text/javascript" ></script>
+	<script src="js/Hill/Hill.js" type="text/javascript" ></script>
+	<script src="js/layui/layui.js"></script>
+
+	<script src="js/jquery/jquery.js"></script>
+
+	<script >
+		 
+		$(function () {
+
+			//凯撒*************************
+
+			
+			$('#Caesar-encodebtn').click(function (e) {
+				  e.preventDefault();
+				  //加密
+				  var inputtext = $('#Caesar-input').val();
+				  var Caesar = new Caesarcipher({
+						        	text : inputtext,
+						        	type : "E"
+						        });
+				  $('#Caesar-output').val(Caesar.run());  
+			});
+
+			$('#Caesar-decodebtn').click(function (e) {
+				e.preventDefault();
+				  //解密
+				  var inputtext = $('#Caesar-input').val();
+				  var Caesar = new Caesarcipher({
+						        	text : inputtext,
+						        	type : "D"
+						        });
+				  $('#Caesar-output').val(Caesar.run());  
+			});
+
+			//playfair****************
+			$('#Playfair-encodebtn').click(function (e) {
+				  //加密
+				  e.preventDefault();
+				  var inputtext = $('#Playfair-input').val();
+
+				  var Playfairobj = new Playfair({
+						        	text : inputtext,
+						        	type : "E",
+						        	key  : $('#keyed').val(),
+						        	samevalue : $('#samevalue').val()
+						        });
+				  console.log(Playfairobj);
+				  $('#Playfair-output').val(Playfairobj.run());  
+			});
+
+			$('#Playfair-decodebtn').click(function (e) {
+				  //加密
+				  e.preventDefault();
+				  var inputtext = $('#Playfair-input').val();
+				  var Playfairobj = new Playfair({
+						        	text : inputtext,
+						        	type : "D",
+						        	key  : $('#keyed').val(),
+						        	samevalue : $('#samevalue').val()
+						        });
+				  $('#Playfair-output').val(Playfairobj.run());  
+			});
+
+
+			var blurflag = 0 ;//避免两个blur事件循环互相触发
+			$('#key').blur(function (argument) {
+				if (blurflag == 0) {
+					 blurflag = 1;
+					 makeKeyMatrixTable();
+					 setTimeout(function (argument) {
+					 	 blurflag = 0;
+					 },1000);
+				}
+				// makeKeyMatrixTable();
+				
+
+
+
+			})
+
+			$('#samevalue').blur(function (argument) {
+				if (blurflag == 0) {
+					 blurflag = 1;
+					 makeKeyMatrixTable();
+					 setTimeout(function (argument) {
+					 	 blurflag = 0;
+					 },1000);
+				}
+
+				// makeKeyMatrixTable();
+			})
+
+
+			//playfair 的矩阵
+			function makeKeyMatrixTable() {
+				 var key = $('#key').val();//关键字的填写
+				 if (key.match(/[^a-zA-Z]/gm) != null ) {
+					//找到非字母的字符串
+					alert('这里有非字母的非法字符，请重新输入！');
+					$('#key').val('monarchy');
+				    key ='monarchy' ;
+				    $('#key').val(key);
+				 }
+				 //判断是否有重复值，不可以有重复的字母
+				 if ( quchong2(key.toUpperCase()).length != key.length  ) {
+				 	alert('你的关键字不可以有重复的字符');
+				 	key ='monarchy' ;
+				 	$('#key').val(key);
+				 }
+
+				 if (  key.length > 10  ) {
+				 	alert('你的关键字不可以长于10个字符');
+				 	key ='monarchy' ;
+				 	$('#key').val(key);
+				 }
+
+				 //******重叠字的处理***//
+				 var samevalue = $('#samevalue').val();//重叠字的处理
+
+				 samevalue = trimall(samevalue);//去除空格
+				 if (samevalue == '') {
+				 	alert('重叠值默认为关键字之外排列最前的两个字母');
+				 }else{
+				 	if (  samevalue.match(/^([a-zA-Z]{2})/) != null ) {
+				 	//如果前两位是字母并且前两位不相同，就截取前两位的字母，其他的错误字符不要
+
+					 	samevalue = samevalue.substr(0,2);//截取
+					 	samevalue = samevalue.toUpperCase();
+					 	samevalue = samevalue.split('');
+					 	if (samevalue[0] == samevalue[1]) {
+					 		//两个字母相同了
+					 		alert('必须是两位连续字母');
+						 	$('#samevalue').val('');
+						 	samevalue = '';
+					 	}else{
+					 		if (key.toUpperCase().indexOf(samevalue[0]) >= 0 || key.toUpperCase().indexOf(samevalue[1]) >= 0 ) {
+							 	alert('重叠字符不可以在关键字里面出现');
+							 	$('#samevalue').val('');
+						 		samevalue = '';
+							 }
+					 	}
+
+
+					 }else{
+					 	//前两位不是字母
+					 	alert('必须是两位连续字母');
+					 	
+					 	samevalue = '';
+					 }
+				 }
+				 
+
+				 //生成矩阵**********//
+				 $('#keyMatrixbody').find('td').html('');
+				 Pf = new Playfair();
+				 var KeyMatrix =  Pf.makeKeyMatrix(key,samevalue);//生成矩阵
+				 for (var letter in KeyMatrix ) {
+				 	 //找到位置
+				 	  // console.log(letter);
+				 	 var tddom = $('#keyMatrixbody').find('tr').eq(KeyMatrix[letter][0]-1).find('td').eq(KeyMatrix[letter][1]-1);
+					 tddom.append(' '+letter+' ');//添加字母
+
+				 }	
+
+				  
+				 $('#keyed').val(key);
+				 if (samevalue == '' ) {
+				 	$('#samevalue').val('');
+				 }else{
+				 	console.log(samevalue);
+				 	 $('#samevalue').val(samevalue[0]+samevalue[1]);
+				 }
+				 
+			}
+
+
+			//Hill加密解密********************
+			var KeyMatrix= [[17,17,5],[21,18,21],[2,2,19]];
+			$('#Hill-encodebtn').click(function (e) {
+				e.preventDefault();
+				  //加密
+				  var inputtext = $('#Hill-input').val();
+				  var Hillobj = new Hill({
+						        	text : inputtext,//明文或者密文，默认是明文，准备加密
+						        	type : "E",
+						        	KeyMatrix: KeyMatrix ,//解密key矩阵
+						        });
+				  console.log(Hillobj.run());
+				  $('#Hill-output').val(Hillobj.run());  
+			});
+
+			$('#Hill-decodebtn').click(function (e) {
+				e.preventDefault();
+				  //解密
+				  var inputtext = $('#Hill-input').val();
+				  var Hillobj = new Hill({
+						        	text : inputtext,//明文或者密文，默认是明文，准备加密
+						        	type : "D",
+						        	KeyMatrix: KeyMatrix,////解密key矩阵
+						        });
+				  console.log(Hillobj.run());
+				  $('#Hill-output').val(Hillobj.run());  
+			});
+
+			//Hill按钮的处理
+			//确定矩阵的按钮
+			$('#Hill-determine').click(function (e) {
+				e.preventDefault();
+				var inputMatrix = $('#Hill-inputMatrix').val();//输入的keyMatrix，字符串形式,并且去除空格
+				inputMatrix = inputMatrix.replace(/([ ]*)/gm, "");//并且去除空格
+				
+				KeyMatrix = inputMatrix.split('\n');
+				// console.log(KeyMatrix);
+				for (var i = 0; i < KeyMatrix.length; i++) {
+					KeyMatrix[i] = KeyMatrix[i].split(',');
+					for (var j = 0; j < KeyMatrix[i].length; j++) {
+						KeyMatrix[i][j] = parseInt(KeyMatrix[i][j]);//把字符串数字转化为数字类型
+					}
+				}
+				// console.log(KeyMatrix);
+
+			})
+
+
+			//重置按钮
+			$('#Hill-reset').click(function (e) {
+				e.preventDefault();
+				$('#Hill-inputMatrix').val();
+				KeyMatrix= [[17,17,5],[21,18,21],[2,2,19]];
+			});
+
+
+			//生成随机矩阵
+			$('#Hill-random').click(function (e) {
+				e.preventDefault();
+				var dimension = $('#Nid').val();//矩阵的阶数
+				// alert(dimension);
+				KeyMatrix = Hill.getInvertibleMatrixofNMOD26is1(dimension);//生成随机矩阵
+                
+                var KeyMatrixString = '';
+                for (var i = 0; i < KeyMatrix.length; i++) {
+                	     if (KeyMatrixString == '') {
+                		 	KeyMatrixString = KeyMatrixString + (KeyMatrix[i].join(','));
+
+                	     }else{
+                	     	KeyMatrixString = KeyMatrixString +'\n'+ (KeyMatrix[i].join(','));
+                	     }
+                		 
+                	 
+                }
+                // console.log(KeyMatrixString);
+                $('#Hill-inputMatrix').val(KeyMatrixString);
+				 
+			});
+
+
+			 
+                
+                var KeyMatrixString = '';
+                for (var i = 0; i < KeyMatrix.length; i++) {
+                	     if (KeyMatrixString == '') {
+                		 	KeyMatrixString = KeyMatrixString + (KeyMatrix[i].join(','));
+
+                	     }else{
+                	     	KeyMatrixString = KeyMatrixString +'\n'+ (KeyMatrix[i].join(','));
+                	     }
+                		 
+                	 
+                }
+                // console.log(KeyMatrixString);
+                $('#Hill-inputMatrix').val(KeyMatrixString);
+
+		 
+
+
+
+			
+		})
+             
+         
+
+        
+
+	</script>
+</head>
+<body>
+		<div class="layui-tab layui-tab-brief" lay-filter="docDemoTabBrief"  >
+		  <ul class="layui-tab-title">
+		    <li class="layui-this">凯撒加密</li>
+		    <li>Playfair密码</li>
+		    <li>Hill密码</li>
+		    
+		  </ul>
+		  <div class="layui-tab-content">
+		    <div class="layui-tab-item layui-show">.
+		    <!-- 凯撒加密(Caesar cipher)是一种简单的消息编码方式 -->
+					     <form class="layui-form layui-form-pane" action="#">
+						   
+						   
+							   
+							  <div class="layui-form-item layui-form-text">
+							    <label class="layui-form-label">输入框</label>
+							    <div class="layui-input-block">
+							      <textarea placeholder="请输入内容" class="layui-textarea" id="Caesar-input"></textarea>
+							    </div>
+							  </div>
+								
+
+							  <div class="layui-form-item">
+							    <button class="layui-btn"  id="Caesar-encodebtn" >加密</button>
+							    <button class="layui-btn"  id="Caesar-decodebtn" >解密</button>
+							  </div>
+								 
+
+
+								<div class="layui-form-item layui-form-text">
+							    <label class="layui-form-label">结果框</label>
+							    <div class="layui-input-block">
+							      <textarea placeholder="结果是" class="layui-textarea" id="Caesar-output"></textarea>
+							    </div>
+							  </div>
+
+							  
+							</form>
+
+
+
+		   </div>
+
+
+
+		    <div class="layui-tab-item"><!-- Playfair密码 -->
+
+
+				
+				 
+						  
+						 
+
+					<form class="layui-form layui-form-pane" action="#">
+						   
+						   	 <div class="layui-form-item">
+							    <label class="layui-form-label">关键字输入</label>
+							    <div class="layui-input-inline">
+							      <input type="text" name="key" id="key" lay-verify="required" value="monarchy" autocomplete="off" class="layui-input">
+							      <input type="hidden" name="keyed" value="monarchy" id="keyed">
+							    </div>
+							  </div>
+
+							  <div class="layui-form-item">
+							    <label class="layui-form-label">重叠值输入</label>
+							    <div class="layui-input-inline">
+							      <input type="text" name="key" id="samevalue" lay-verify="required"  autocomplete="off" class="layui-input">
+							       
+							    </div>
+							  </div>
+
+								<!-- 矩阵 -->
+						   	<table class="layui-table" style="max-width:300px;">
+						     
+						   
+						    <tbody id="keyMatrixbody">
+						      <tr  >
+						        <td style="width:20%"> M </td>
+						        <td style="width:20%"> O </td>
+						        <td style="width:20%"> N </td>
+						        <td style="width:20%"> A </td>
+						        <td style="width:20%"> R </td>
+						      </tr>
+						      <tr  >
+						        <td style="width:20%"> C </td>
+						        <td style="width:20%"> H </td>
+						        <td style="width:20%"> Y </td>
+						        <td style="width:20%"> B  D </td>
+						        <td style="width:20%"> E </td>
+						      </tr>
+						      <tr  >
+						        <td style="width:20%">F</td>
+						        <td style="width:20%">G</td>
+						        <td style="width:20%">I</td>
+						        <td style="width:20%">J</td>
+						        <td style="width:20%">K</td>
+						      </tr>
+						      <tr  >
+						        <td style="width:20%">L</td>
+						        <td style="width:20%">P</td>
+						        <td style="width:20%">Q</td>
+						        <td style="width:20%">S</td>
+						        <td style="width:20%">T</td>
+						      </tr>
+						      <tr  >
+						        <td style="width:20%">U</td>
+						        <td style="width:20%">V</td>
+						        <td style="width:20%">W</td>
+						        <td style="width:20%">X</td>
+						        <td style="width:20%">Z</td>
+						      </tr>
+						       
+						       
+						       
+						    </tbody>
+						  </table>
+
+
+
+
+							   
+							  <div class="layui-form-item layui-form-text">
+							    <label class="layui-form-label">输入框</label>
+							    <div class="layui-input-block">
+							      <textarea placeholder="请输入内容" class="layui-textarea" id="Playfair-input"></textarea>
+							    </div>
+							  </div>
+								
+
+							  <div class="layui-form-item">
+							    <button class="layui-btn"  id="Playfair-encodebtn" >加密</button>
+							    <button class="layui-btn"  id="Playfair-decodebtn" >解密</button>
+							  </div>
+								 
+
+
+								<div class="layui-form-item layui-form-text">
+							    <label class="layui-form-label">结果框</label>
+							    <div class="layui-input-block">
+							      <textarea placeholder="结果是" class="layui-textarea" id="Playfair-output"></textarea>
+							    </div>
+							  </div>
+
+							  
+							</form>
+
+
+
+		    </div>
+		    <div class="layui-tab-item">
+		    	<!-- Hill密码 -->
+				     <form class="layui-form layui-form-pane" action="#">
+						   
+						   	  <div class="layui-form-item layui-form-text">
+							    <label class="layui-form-label">输入矩阵</label>
+							    <div class="layui-input-block">
+							      <textarea style="height: 200px;" placeholder="请输入内容" class="layui-textarea" id="Hill-inputMatrix"></textarea>
+							    </div>
+							  </div>
+							  <div class="layui-form-item">
+							    <button class="layui-btn"  id="Hill-determine" >确定</button>
+							    <button class="layui-btn"  id="Hill-reset" >重置</button>
+							    <button class="layui-btn"  id="Hill-random" >生成随机key矩阵</button>
+								
+            <select style="display: inline-block;height: 38px;
+    line-height: 38px;
+    padding: 0px 18px; 
+    margin: 1px 0; 
+    white-space: nowrap;
+    text-align: center;
+    font-size: 14px;
+    border: none;
+    border-radius: 2px;border: 1px solid #999;" id="Nid">
+               
+              
+              <option value="2" >2</option>
+              <option value="3" selected="selected">3</option>
+              <option value="4" >4</option>
+              <option value="5" >5</option>
+              <option value="6" >6</option>
+              <option value="7" >7</option>
+            </select>
+							     
+							  </div>
+  					
+ 
+ 
+							 
+						 
+							   
+							  <div class="layui-form-item layui-form-text">
+							    <label class="layui-form-label">输入框</label>
+							    <div class="layui-input-block">
+							      <textarea placeholder="请输入内容" class="layui-textarea" id="Hill-input"></textarea>
+							    </div>
+							  </div>
+								
+
+							  <div class="layui-form-item">
+							    <button class="layui-btn"  id="Hill-encodebtn" >加密</button>
+							    <button class="layui-btn"  id="Hill-decodebtn" >解密</button>
+							  </div>
+								 
+
+
+								<div class="layui-form-item layui-form-text">
+							    <label class="layui-form-label">结果框</label>
+							    <div class="layui-input-block">
+							      <textarea placeholder="结果是" class="layui-textarea" id="Hill-output"></textarea>
+							    </div>
+							  </div>
+
+
+
+
+
+
+
+					 
+					
+
+
+
+
+		    </div>
+		    
+		  </div>
+		</div>
+		 
+		<script>
+		//注意：选项卡 依赖 element 模块，否则无法进行功能性操作
+		layui.use('element', function(){
+		  var element = layui.element;
+		  
+		  //…
+		});
+		</script>
+      	
+</body>
+</html>
